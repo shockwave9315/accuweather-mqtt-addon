@@ -1,0 +1,44 @@
+{
+  "name": "AccuWeather MQTT Publisher",
+  "version": "1.0.0",
+  "slug": "accuweather_mqtt",
+  "description": "Publishes current AccuWeather conditions to MQTT with Home Assistant Discovery.",
+  "url": "https://github.com/shockwave9315/accuweather-mqtt-addon",
+  "arch": [
+    "aarch64",
+    "amd64",
+    "armhf",
+    "armv7",
+    "i386"
+  ],
+  "startup": "application",
+  "boot": "auto",
+  "init": false,
+  "options": {
+    "ACCUWEATHER_API_KEY": "YOUR_ACCUWEATHER_API_KEY",
+    "ACCUWEATHER_CITY_NAME": "",
+    "ACCUWEATHER_LOCATION_KEY": "",
+    "MQTT_BROKER_ADDRESS": "core-mosquitto",
+    "MQTT_BROKER_PORT": 1883,
+    "MQTT_USERNAME": "homeassistant",
+    "MQTT_PASSWORD": "YOUR_MQTT_PASSWORD",
+    "REFRESH_INTERVAL_SECONDS": 60
+  },
+  "schema": {
+    "ACCUWEATHER_API_KEY": "str",
+    "ACCUWEATHER_CITY_NAME": "str",
+    "ACCUWEATHER_LOCATION_KEY": "str?",
+    "MQTT_BROKER_ADDRESS": "str",
+    "MQTT_BROKER_PORT": "int",
+    "MQTT_USERNAME": "str",
+    "MQTT_PASSWORD": "password",
+    "REFRESH_INTERVAL_SECONDS": "int"
+  },
+  "map": ["config:rw"],
+  "ports": {},
+  "image": "ghcr.io/shockwave9315/accuweather-mqtt-addon_{arch}",
+  "build_dir": "/usr/src/build",
+  "environment": {
+    "PYTHONUNBUFFERED": 1
+  }
+}
