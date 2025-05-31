@@ -1,0 +1,10 @@
+{
+  "name": "AccuWeather MQTT Add-on Repository",
+  "url": "https://github.com/shockwave9315/accuweather-mqtt-addon",
+  "maintainer": "shockwave9315",
+  "addons": [
+    {
+      "slug": "accuweather_mqtt"
+    }
+  ]
+}
