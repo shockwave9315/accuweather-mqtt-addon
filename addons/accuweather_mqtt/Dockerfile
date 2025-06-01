@@ -3,27 +3,55 @@ FROM ${BUILD_FROM}
 
 ENV PYTHONUNBUFFERED 1
 
-# Upewnij się, że Python i pip są dostępne. Obrazy bazowe Home Assistant często mają je już zainstalowane
-# lub wymagają specyficznej metody instalacji, jeśli brakuje.
-# Ta instrukcja jest bardziej odporna i często stosowana w dodatkach HA.
+# Dodatkowe pakiety potrzebne do budowania i instalacji Pythona/pip na Alpine
+# Często brakuje tych pakietów, co powoduje błąd "exit code: 255"
 RUN \
     if [ -f /etc/alpine-release ]; then \
-        apk add --no-cache python3 py3-pip || \
-        apk add --no-cache python3-dev python3-pip || \
-        echo "Python/pip already installed or alternative installation needed on Alpine"; \
+        apk update && apk add --no-cache \
+            build-base \
+            python3-dev \
+            py3-pip \
+            libffi-dev \
+            openssl-dev \
+            bzip2-dev \
+            zlib-dev \
+            readline-dev \
+            sqlite-dev \
+            libressl-dev \
+            libxml2-dev \
+            libxslt-dev \
+            gcc \
+            musl-dev \
+            curl \
+            wget \
+            git || \
+        echo "Failed to install some Alpine dev packages, continuing..."; \
     elif [ -f /etc/debian_version ]; then \
-        apt-get update && apt-get install -y python3 python3-pip --no-install-recommends && \
+        apt-get update && apt-get install -y --no-install-recommends \
+            python3 \
+            python3-pip \
+            build-essential \
+            libffi-dev \
+            libssl-dev \
+            curl \
+            wget \
+            git && \
         rm -rf /var/lib/apt/lists/*; \
     else \
-        echo "Unsupported base OS for direct Python/pip installation. Assuming Python is available."; \
+        echo "Unsupported base OS for direct package installation. Assuming build tools are available."; \
     fi
 
-# Upgrade pip (to jest dobra praktyka)
-RUN pip install --no-cache-dir --upgrade pip
+# Upewnij się, że pip jest aktualny i dostępny (używaj python3 -m pip)
+RUN python3 -m ensurepip --upgrade || \
+    (wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && \
+     python3 /tmp/get-pip.py --no-cache-dir && \
+     rm /tmp/get-pip.py) || \
+    echo "pip installation/upgrade failed, continuing..."; \
+    python3 -m pip install --no-cache-dir --upgrade pip
 
 # Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip3 install -r requirements.txt --break-system-packages
+RUN python3 -m pip install -r requirements.txt --break-system-packages
 
 # Copy application code
 COPY accuweather_mqtt_publisher.py /app/accuweather_mqtt_publisher.py
