@@ -22,25 +22,41 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }} # Automatycznie pobiera Twoją nazwę użytkownika GitHub
-          password: <span class="math-inline">\{\{ secrets\.GITHUB\_TOKEN \}\} \# Używa automatycznie generowanego tokenu do uwierzytelnienia
-\- name\: Get Add\-on Version from config\.json \# Pobiera wersję dodatku z config\.json
-id\: get\_version \# Identyfikator tego kroku, aby móc odwołać się do jego wyjścia
-run\: \|
-VERSION\=</span>(jq -r '.version' addons/accuweather_mqtt/config.json)
-          echo "ADDON_VERSION=${VERSION}" >> <span class="math-inline">GITHUB\_OUTPUT
-\- name\: Build and push Docker image \# Buduje i publikuje obraz Dockera dla różnych architektur
-uses\: docker/build\-push\-action@v5
-with\:
-context\: \./addons/accuweather\_mqtt/ \# Ścieżka do katalogu z Dockerfile i plikami dodatku
-platforms\: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6,linux/i386 \# Architektury, dla których budujemy obraz
-push\: true \# Włącza pushowanie obrazu do registry
-tags\: \| \# Definiuje tagi dla obrazów, z dynamiczną wersją i architekturą
-ghcr\.io/shockwave9315/accuweather\-mqtt\-addon\_amd64\:</span>{{ steps.get_version.outputs.ADDON_VERSION }}
-            ghcr.io/shockwave9315/accuweather-mqtt-addon_arm64:<span class="math-inline">\{\{ steps\.get\_version\.outputs\.ADDON\_VERSION \}\}
-ghcr\.io/shockwave9315/accuweather\-mqtt\-addon\_armv7\:</span>{{ steps.get_version.outputs.ADDON_VERSION }}
-            ghcr.io/shockwave9315/accuweather-mqtt-addon_armhf:<span class="math-inline">\{\{ steps\.get\_version\.outputs\.ADDON\_VERSION \}\}
-ghcr\.io/shockwave9315/accuweather\-mqtt\-addon\_i386\:</span>{{ steps.get_version.outputs.ADDON_VERSION }}
+          password: ${{ secrets.GITHUB_TOKEN }} # Używa automatycznie generowanego tokenu do uwierzytelnienia
+
+      - name: Get Add-on Version from config.json # Pobiera wersję dodatku z config.json
+        id: get_version # Identyfikator tego kroku, aby móc odwołać się do jego wyjścia
+        run: |
+          VERSION=$(jq -r '.version' addons/accuweather_mqtt/config.json)
+          echo "ADDON_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image # Buduje i publikuje obraz Dockera dla różnych architektur
+        uses: docker/build-push-action@v5
+        with:
+          context: ./addons/accuweather_mqtt/ # Ścieżka do katalogu z Dockerfile i plikami dodatku
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6,linux/i386 # Architektury, dla których budujemy obraz
+          push: true # Włącza pushowanie obrazu do registry
+          tags: | # Definiuje tagi dla obrazów, z dynamiczną wersją i architekturą
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_amd64:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_arm64:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_armv7:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_armhf:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_i386:${{ steps.get_version.outputs.ADDON_VERSION }}
           # Kluczowa sekcja: Przekazujemy BUILD_ARCH z odpowiednim obrazem bazowym dla każdej platformy
           build-args: |
             BUILD_ARCH_amd64=amd64
-            BUILD_ARCH_arm64=aarch64 # arm64 zazwyczaj używa aarch
+            BUILD_ARCH_arm64=aarch64 # arm64 zazwyczaj używa aarch64-base
+            BUILD_ARCH_armv7=armv7
+            BUILD_ARCH_armhf=armhf # armhf dla armv6/v7 jeśli jest kompatybilny
+            BUILD_ARCH_i386=i386
+          labels: | # Dodaje etykiety do obrazu, przydatne do metadanych
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.description=Home Assistant Add-on: AccuWeather MQTT Publisher
+            org.opencontainers.image.version=${{ steps.get_version.outputs.ADDON_VERSION }}
+
+      - name: Make package public (IMPORTANT!) # Zapewnia, że obraz w GHCR jest publiczny
+        run: |
+          curl -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/packages/container/accuweather-mqtt-addon \
+          -d '{"visibility": "public"}'
