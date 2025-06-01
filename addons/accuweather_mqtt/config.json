@@ -36,6 +36,6 @@
   },
   "map": ["config:rw"],
   "ports": {},
-  "image": "ghcr.io/shockwave9315/accuweather-mqtt-addon_{arch}",
+  "image": "ghcr.io/shockwave9315/accuweather-mqtt-addon/{arch}",
   "build_dir": "/usr/src/build"
 }
