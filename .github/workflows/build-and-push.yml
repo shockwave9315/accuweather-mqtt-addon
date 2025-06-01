@@ -3,23 +3,15 @@ name: Build and Push Add-on
 on:
   push:
     branches:
-      - main # Uruchamia workflow przy każdym pushu do gałęzi 'main'
-  workflow_dispatch: # Pozwala na ręczne uruchomienie workflow z interfejsu GitHub
+      - main
+  workflow_dispatch:
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
-    permissions: # WAŻNE: Uprawnienia do zapisu pakietów i odczytu repozytorium
+    permissions:
       contents: read
       packages: write
-    strategy: # Definiujemy matrycę dla budowania wielu architektur
-      matrix:
-        include:
-          - arch: amd64
-            build_from: homeassistant/amd64-base:latest
-          - arch: arm64
-            build_from: homeassistant/aarch64-base:latest # Architektura dla Raspberry Pi 5
-          # Usunięto: i386
 
     steps:
       - name: Checkout repository
@@ -41,27 +33,24 @@ jobs:
           VERSION=$(jq -r '.version' addons/accuweather_mqtt/config.json)
           echo "ADDON_VERSION=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image for ${{ matrix.arch }}
+      - name: Build and Push Multi-Arch Image
         uses: docker/build-push-action@v5
         with:
           context: ./addons/accuweather_mqtt/
-          platforms: linux/${{ matrix.arch }} # Budujemy tylko dla jednej architektury z matryzy
+          platforms: linux/amd64,linux/arm64
           push: true
-          # KLUCZOWA ZMIANA PONIŻEJ: Tagujemy wszystkie architektury pod JEDNĄ nazwą
-          # Buildx stworzy z tego jeden manifest wieloarchitektoniczny
           tags: ghcr.io/shockwave9315/accuweather-mqtt-addon:${{ steps.get_version.outputs.ADDON_VERSION }}
-          build-args: | # Przekazujemy BUILD_FROM z matrycy do Dockerfile
-            BUILD_FROM=${{ matrix.build_from }}
+          build-args: |
+            BUILD_FROM=homeassistant/amd64-base:latest
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.html_url }}
             org.opencontainers.image.description=Home Assistant Add-on: AccuWeather MQTT Publisher
             org.opencontainers.image.version=${{ steps.get_version.outputs.ADDON_VERSION }}
 
-      - name: Make package public (IMPORTANT!)
-        # Ten krok uruchomi się tylko raz (dla architektury amd64), jeśli wszystkie buildy się powiodą
-        if: success() && matrix.arch == 'amd64'
+      - name: Make container image public
         run: |
-          curl -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/packages/container/accuweather-mqtt-addon \
-          -d '{"visibility": "public"}'
+          curl -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/user/packages/container/accuweather-mqtt-addon/visibility \
+            -d '{"visibility":"public"}'
