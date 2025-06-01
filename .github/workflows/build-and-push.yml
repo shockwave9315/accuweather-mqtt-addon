@@ -40,7 +40,7 @@ jobs:
             ghcr.io/shockwave9315/accuweather-mqtt-addon_amd64:${{ steps.get_version.outputs.ADDON_VERSION }}
             ghcr.io/shockwave9615/accuweather-mqtt-addon_arm64:${{ steps.get_version.outputs.ADDON_VERSION }}
             ghcr.io/shockwave9315/accuweather-mqtt-addon_armv7:${{ steps.get_version.outputs.ADDON_VERSION }}
-            ghcr.io/shockwave9315/accuweather-mqtt-addon_armhf:${{ steps.get_version.outputs.ADDON_VERSION }} # Użyj armhf dla armv6/v7 jeśli obraz jest kompatybilny, lub usuń jeśli niepotrzebne
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_armhf:${{ steps.get_version.outputs.ADDON_VERSION }}
             ghcr.io/shockwave9315/accuweather-mqtt-addon_i386:${{ steps.get_version.outputs.ADDON_VERSION }}
           labels: | # Dodaje etykiety do obrazu, przydatne do metadanych
             org.opencontainers.image.source=${{ github.event.repository.html_url }}
