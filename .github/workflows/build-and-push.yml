@@ -9,10 +9,11 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    strategy: # DEFINIUJEMY MATRYCĘ TUTAJ!
+    permissions: # DODAJ TĘ SEKCJE - WAŻNE DLA BŁĘDU 403 Forbidden
+      contents: read # Potrzebne do checkout
+      packages: write # Potrzebne do pushowania obrazów do GHCR
+    strategy:
       matrix:
-        # To są architekury, dla których będziemy budować obraz
-        # Zmienne arch i build_from będą używane w krokach poniżej
         include:
           - arch: amd64
             build_from: homeassistant/amd64-base:latest
@@ -20,7 +21,7 @@ jobs:
             build_from: homeassistant/aarch64-base:latest
           - arch: armv7
             build_from: homeassistant/armv7-base:latest
-          - arch: armhf # Często używane dla armv6, armv7 (jeśli kompatybilne)
+          - arch: armhf
             build_from: homeassistant/armhf-base:latest
           - arch: i386
             build_from: homeassistant/i386-base:latest
@@ -49,10 +50,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./addons/accuweather_mqtt/
-          platforms: linux/${{ matrix.arch }} # Budujemy tylko dla jednej architektury z matrycy
+          platforms: linux/${{ matrix.arch }}
           push: true
           tags: ghcr.io/shockwave9315/accuweather-mqtt-addon_${{ matrix.arch }}:${{ steps.get_version.outputs.ADDON_VERSION }}
-          # KLUCZOWA ZMIANA: BUILD_FROM jest przekazywane z matrycy
           build-args: |
             BUILD_FROM=${{ matrix.build_from }}
           labels: |
@@ -61,9 +61,6 @@ jobs:
             org.opencontainers.image.version=${{ steps.get_version.outputs.ADDON_VERSION }}
 
       - name: Make package public (IMPORTANT!)
-        # Ten krok powinien być wykonany tylko raz, po zbudowaniu wszystkich obrazów
-        # Musimy zmienić ten krok, aby był uruchamiany na końcu całego joba, nie dla każdej architektury.
-        # Dlatego dodajemy warunek:
         if: success() && matrix.arch == 'amd64' # Tylko raz, po udanym zbudowaniu choćby jednej arch.
         run: |
           curl -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
