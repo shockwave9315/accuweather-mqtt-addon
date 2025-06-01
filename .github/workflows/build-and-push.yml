@@ -19,8 +19,7 @@ jobs:
             build_from: homeassistant/amd64-base:latest
           - arch: arm64
             build_from: homeassistant/aarch64-base:latest # Architektura dla Raspberry Pi 5
-          - arch: i386
-            build_from: homeassistant/i386-base:latest
+          # Usunięto: i386
 
     steps:
       - name: Checkout repository
@@ -42,13 +41,14 @@ jobs:
           VERSION=$(jq -r '.version' addons/accuweather_mqtt/config.json)
           echo "ADDON_VERSION=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image for ${{ matrix.arch }}
         uses: docker/build-push-action@v5
         with:
           context: ./addons/accuweather_mqtt/
-          platforms: linux/amd64,linux/arm64,linux/i386 # Budujemy wszystkie architektury RAZEM
+          platforms: linux/${{ matrix.arch }} # Budujemy tylko dla jednej architektury z matryzy
           push: true
-          # KLUCZOWA ZMIANA PONIŻEJ: tagujemy GŁÓWNĄ NAZWĘ OBRAZU. Buildx stworzy manifest!
+          # KLUCZOWA ZMIANA PONIŻEJ: Tagujemy wszystkie architektury pod JEDNĄ nazwą
+          # Buildx stworzy z tego jeden manifest wieloarchitektoniczny
           tags: ghcr.io/shockwave9315/accuweather-mqtt-addon:${{ steps.get_version.outputs.ADDON_VERSION }}
           build-args: | # Przekazujemy BUILD_FROM z matrycy do Dockerfile
             BUILD_FROM=${{ matrix.build_from }}
@@ -58,8 +58,8 @@ jobs:
             org.opencontainers.image.version=${{ steps.get_version.outputs.ADDON_VERSION }}
 
       - name: Make package public (IMPORTANT!)
-        # Ten krok uruchomi się tylko raz (dla ostatniej architektury, po sukcesie całego builda)
-        if: success()
+        # Ten krok uruchomi się tylko raz (dla architektury amd64), jeśli wszystkie buildy się powiodą
+        if: success() && matrix.arch == 'amd64'
         run: |
           curl -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
