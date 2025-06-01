@@ -42,11 +42,11 @@ jobs:
             ghcr.io/shockwave9315/accuweather-mqtt-addon_armv7:${{ steps.get_version.outputs.ADDON_VERSION }}
             ghcr.io/shockwave9315/accuweather-mqtt-addon_armhf:${{ steps.get_version.outputs.ADDON_VERSION }}
             ghcr.io/shockwave9315/accuweather-mqtt-addon_i386:${{ steps.get_version.outputs.ADDON_VERSION }}
-          build-args: | # Definicje obrazów bazowych dla każdej architektury, przekazywane jako ARG do Dockerfile
+          build-args: | # Przekazuje ARG BUILD_FROM z odpowiednim obrazem bazowym dla każdej platformy
             BUILD_FROM_AMD64=homeassistant/amd64-base:latest
             BUILD_FROM_ARM64=homeassistant/aarch64-base:latest
             BUILD_FROM_ARMV7=homeassistant/armv7-base:latest
-            BUILD_FROM_ARMHF=homeassistant/armhf-base:latest
+            BUILD_FROM_ARMHF=homeassistant/armhf-base:latest # Użyj armhf dla armv6/v7 jeśli obraz jest kompatybilny
             BUILD_FROM_I386=homeassistant/i386-base:latest
           labels: | # Dodaje etykiety do obrazu, przydatne do metadanych
             org.opencontainers.image.source=${{ github.event.repository.html_url }}
