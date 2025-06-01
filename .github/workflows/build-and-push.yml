@@ -1,0 +1,55 @@
+name: Build and Push Add-on
+
+on:
+  push:
+    branches:
+      - main # Uruchamia workflow przy każdym pushu do gałęzi 'main'
+  workflow_dispatch: # Pozwala na ręczne uruchomienie workflow z interfejsu GitHub
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest # Wybiera środowisko uruchomieniowe (maszynę wirtualną)
+
+    steps:
+      - name: Checkout repository # Klonuje Twoje repozytorium
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx # Konfiguruje Buildx dla Docker, niezbędne do budowania multi-platformowych obrazów
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry # Loguje się do GHCR, aby móc pushować obrazy
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }} # Automatycznie pobiera Twoją nazwę użytkownika GitHub
+          password: ${{ secrets.GITHUB_TOKEN }} # Używa automatycznie generowanego tokenu do uwierzytelnienia
+
+      - name: Get Add-on Version from config.json # Pobiera wersję dodatku z config.json
+        id: get_version # Identyfikator tego kroku, aby móc odwołać się do jego wyjścia
+        run: |
+          VERSION=$(jq -r '.version' addons/accuweather_mqtt/config.json)
+          echo "ADDON_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image # Buduje i publikuje obraz Dockera dla różnych architektur
+        uses: docker/build-push-action@v5
+        with:
+          context: ./addons/accuweather_mqtt/ # Ścieżka do katalogu z Dockerfile i plikami dodatku
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6,linux/386 # Architektury, dla których budujemy obraz
+          push: true # Włącza pushowanie obrazu do registry
+          tags: | # Definiuje tagi dla obrazów, z dynamiczną wersją i architekturą
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_amd64:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9615/accuweather-mqtt-addon_arm64:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_armv7:${{ steps.get_version.outputs.ADDON_VERSION }}
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_armhf:${{ steps.get_version.outputs.ADDON_VERSION }} # Użyj armhf dla armv6/v7 jeśli obraz jest kompatybilny, lub usuń jeśli niepotrzebne
+            ghcr.io/shockwave9315/accuweather-mqtt-addon_i386:${{ steps.get_version.outputs.ADDON_VERSION }}
+          labels: | # Dodaje etykiety do obrazu, przydatne do metadanych
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.description=Home Assistant Add-on: AccuWeather MQTT Publisher
+            org.opencontainers.image.version=${{ steps.get_version.outputs.ADDON_VERSION }}
+
+      - name: Make package public (IMPORTANT!) # Zapewnia, że obraz w GHCR jest publiczny
+        run: |
+          curl -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/packages/container/accuweather-mqtt-addon \
+          -d '{"visibility": "public"}'
